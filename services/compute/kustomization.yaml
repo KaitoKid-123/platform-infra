@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: platform-compute
+helmCharts:
+  - name: spark-operator
+    repo: https://kubeflow.github.io/spark-operator
+    version: 2.1.0
+    releaseName: spark-operator
+    namespace: platform-compute
+    valuesFile: spark-operator/values.yaml
+    # CRDs cài riêng trong bootstrap (> 262KB, ArgoCD không apply được)
+    includeCRDs: false
+resources: []
+  # [DISABLED - cluster quá nhỏ] Trino: cần 10+ CPU, 48+ GB RAM
+  # [DISABLED - cluster quá nhỏ] Kafka: cần 7.5+ CPU, 27+ GB RAM

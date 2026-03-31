@@ -1,0 +1,98 @@
+fernetKey: sOltsKHMxnd5Ue2TDiulyC2nzzw6X1DW1uR8mTNn-c4=
+webserverSecretKey: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
+executor: LocalExecutor
+airflowVersion: 2.8.1
+defaultAirflowTag: 2.8.1
+defaultAirflowRepository: apache/airflow
+env:
+  - name: AIRFLOW__CORE__LOAD_EXAMPLES
+    value: "False"
+  - name: AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION
+    value: "True"
+  - name: AIRFLOW__WEBSERVER__EXPOSE_CONFIG
+    value: "True"
+  - name: AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT
+    value: "300"
+  - name: AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT
+    value: "300"
+  - name: AIRFLOW__METRICS__STATSD_ON
+    value: "False"
+dags:
+  gitSync:
+    enabled: true
+    repo: http://gitea-http.platform-ops:3000/data-platform/platform-dags
+    branch: main
+    subPath: dags
+    wait: 60
+    containerName: git-sync
+    uid: 65533
+    extraVolumeMounts: []
+    credentialsSecret: gitea-dags-secret
+webserver:
+  replicas: 1
+  args: ["bash", "-c", "exec airflow webserver --port 8080 -w 1"]
+  startupProbe:
+    failureThreshold: 60              # 600s - cluster nhỏ cần thời gian load providers
+    periodSeconds: 10
+  livenessProbe:
+    initialDelaySeconds: 15
+    timeoutSeconds: 30
+    periodSeconds: 30
+  readinessProbe:
+    initialDelaySeconds: 15
+    timeoutSeconds: 30
+    periodSeconds: 10
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  service:
+    type: ClusterIP
+scheduler:
+  replicas: 1
+  startupProbe:
+    failureThreshold: 60              # 600s - tương tự webserver
+    periodSeconds: 10
+    timeoutSeconds: 60                # cluster nhỏ, jobs check chậm
+  livenessProbe:
+    timeoutSeconds: 60
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+triggerer:
+  enabled: false                   # Dev: tắt triggerer
+  replicas: 1
+workers:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+pgbouncer:
+  enabled: false                   # Dev: tắt pgbouncer
+  maxClientConn: 100
+  metadataPoolSize: 10
+postgresql:
+  enabled: true
+  image:
+    tag: latest
+  persistence:
+    enabled: true
+    storageClass: local-path
+    size: 5Gi                      # Dev: 5Gi (prod: 20Gi)
+redis:
+  enabled: false
+statsd:
+  enabled: false                   # Dev: tắt statsd
+logs:
+  persistence:
+    enabled: false                  # Dev: dùng emptyDir (local-path không hỗ trợ RWX)

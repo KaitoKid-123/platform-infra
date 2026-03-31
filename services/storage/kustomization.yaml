@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - local-path-provisioner.yaml
+  - minio.yaml
+  - iceberg-rest.yaml
+  - iceberg-postgres.yaml
+  - iceberg-s3-secret.yaml
+  # [DISABLED - không có raw disk] Rook-Ceph
+  # - rook-operator.yaml
+  # - ceph-cluster.yaml
+  # - object-store.yaml
+  # - storage-classes.yaml
+# helmCharts:
+#   - name: rook-ceph
+#     repo: https://charts.rook.io/release
+#     version: v1.13.0
+#     releaseName: rook-ceph
+#     namespace: rook-ceph
+#     valuesFile: rook-operator-values.yaml

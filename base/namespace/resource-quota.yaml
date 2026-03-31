@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: team-quota
+  namespace: team-TEAM_NAME
+spec:
+  hard:
+    requests.cpu: "1"              # Dev: 1 CPU (prod: 16)
+    requests.memory: 2Gi           # Dev: 2Gi (prod: 64Gi)
+    limits.cpu: "2"                # Dev: 2 CPU (prod: 32)
+    limits.memory: 4Gi             # Dev: 4Gi (prod: 128Gi)
+    requests.storage: 20Gi         # Dev: 20Gi (prod: 2Ti)
+    count/pods: "10"               # Dev: 10 (prod: 100)
+    count/services: "5"
+    count/sparkapplications.sparkoperator.k8s.io: "2"
+    count/scheduledsparkapplications.sparkoperator.k8s.io: "1"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: team-limits
+  namespace: team-TEAM_NAME
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: "2"
+        memory: 4Gi
+      defaultRequest:
+        cpu: 500m
+        memory: 1Gi
+      max:
+        cpu: "16"
+        memory: 64Gi
+      min:
+        cpu: 100m
+        memory: 128Mi
+    - type: PersistentVolumeClaim
+      max:
+        storage: 500Gi

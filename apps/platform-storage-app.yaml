@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-storage
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: http://gitea-http.platform-ops:3000/data-platform/platform-infra
+    targetRevision: main
+    path: services/storage
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform-storage
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

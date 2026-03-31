@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# [DISABLED - cluster không đủ tài nguyên (3 node x 2GB RAM)]
+# Bật lại khi có thêm node hoặc nâng RAM.
+# resources:
+#   - prometheus-rules/platform-alerts.yaml
+#   - prometheus-rules/cost-recording-rules.yaml
+# helmCharts:
+#   - name: kube-prometheus-stack
+#     repo: https://prometheus-community.github.io/helm-charts
+#     version: 65.1.1
+#     releaseName: kube-prometheus-stack
+#     namespace: monitoring
+#     valuesFile: values.yaml
+#     includeCRDs: true
+resources: []

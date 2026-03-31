@@ -1,0 +1,148 @@
+# MinIO — Lightweight S3-compatible object storage
+# Thay thế Ceph RGW cho môi trường dev/small cluster
+# Data dùng emptyDir (mất khi pod restart — OK cho dev)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: platform-storage
+  labels:
+    app: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2024-01-29T03-56-32Z
+          command:
+            - minio
+            - server
+            - /data
+            - --console-address
+            - ":9001"
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: root_user
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: root_password
+          ports:
+            - containerPort: 9000
+              name: s3
+            - containerPort: 9001
+              name: console
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: data
+          emptyDir:
+            sizeLimit: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: platform-storage
+spec:
+  selector:
+    app: minio
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-external
+  namespace: platform-storage
+spec:
+  type: NodePort
+  selector:
+    app: minio
+  ports:
+    - name: console
+      port: 9001
+      targetPort: 9001
+      nodePort: 30901
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-credentials
+  namespace: platform-storage
+type: Opaque
+stringData:
+  root_user: "minioadmin"
+  root_password: "MinIO@Admin2024!"
+---
+# Job để tạo bucket data-lake khi MinIO khởi động
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-create-buckets
+  namespace: platform-storage
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc:RELEASE.2024-01-28T16-23-14Z
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Chờ MinIO ready
+              until mc alias set myminio http://minio.platform-storage:9000 minioadmin 'MinIO@Admin2024!' 2>/dev/null; do
+                echo "Waiting for MinIO..."
+                sleep 5
+              done
+              # Tao buckets
+              mc mb --ignore-existing myminio/data-lake
+              mc mb --ignore-existing myminio/platform-backups
+              mc mb --ignore-existing myminio/team-finance
+              echo "Buckets created successfully (data-lake, platform-backups, team-finance)"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi

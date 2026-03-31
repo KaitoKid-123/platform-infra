@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: team-finance-quota
+  namespace: team-finance
+spec:
+  hard:
+    requests.cpu: "3"
+    requests.memory: 5Gi
+    limits.cpu: "6"
+    limits.memory: 8Gi
+    persistentvolumeclaims: "5"

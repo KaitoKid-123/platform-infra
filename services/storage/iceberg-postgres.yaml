@@ -1,0 +1,100 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: iceberg-postgres-pvc
+  namespace: platform-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi                  # Dev: 5Gi (prod: 20Gi)
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: iceberg-postgres
+  namespace: platform-storage
+spec:
+  serviceName: iceberg-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iceberg-postgres
+  template:
+    metadata:
+      labels:
+        app: iceberg-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15.5
+          env:
+            - name: POSTGRES_DB
+              value: iceberg_catalog
+            - name: POSTGRES_USER
+              value: iceberg
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: iceberg-postgres-secret
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 512Mi
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", "iceberg", "-d", "iceberg_catalog"]
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "iceberg", "-d", "iceberg_catalog"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: iceberg-postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iceberg-postgres
+  namespace: platform-storage
+spec:
+  selector:
+    app: iceberg-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# Secret iceberg-postgres-secret phải được tạo bằng SealedSecrets trước khi deploy.
+# Ví dụ:
+#   kubectl create secret generic iceberg-postgres-secret \
+#     --from-literal=password='<REAL_PASSWORD>' \
+#     --namespace platform-storage --dry-run=client -o yaml | \
+#     kubeseal --controller-namespace kube-system --format yaml > sealed-iceberg-postgres-secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: iceberg-postgres-secret
+  namespace: platform-storage
+type: Opaque
+stringData:
+  password: "REPLACE_WITH_SEALED_SECRET"

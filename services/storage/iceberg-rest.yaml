@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iceberg-rest
+  namespace: platform-storage
+  labels:
+    app: iceberg-rest
+spec:
+  replicas: 1                     # Dev: 1 replica (prod: 2)
+  selector:
+    matchLabels:
+      app: iceberg-rest
+  template:
+    metadata:
+      labels:
+        app: iceberg-rest
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8181"
+    spec:
+      containers:
+        - name: iceberg-rest
+          image: tabulario/iceberg-rest:0.10.0
+          ports:
+            - containerPort: 8181
+              name: rest
+          env:
+            - name: CATALOG_CATALOG__IMPL
+              value: org.apache.iceberg.jdbc.JdbcCatalog
+            - name: CATALOG_URI
+              value: jdbc:postgresql://iceberg-postgres.platform-storage:5432/iceberg_catalog
+            - name: CATALOG_JDBC_USER
+              value: iceberg
+            - name: CATALOG_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: iceberg-postgres-secret
+                  key: password
+            - name: CATALOG_WAREHOUSE
+              value: s3://data-lake/warehouse
+            - name: CATALOG_IO__IMPL
+              value: org.apache.iceberg.aws.s3.S3FileIO
+            - name: CATALOG_S3_ENDPOINT
+              value: http://minio.platform-storage:9000
+            - name: CATALOG_S3_PATH__STYLE__ACCESS
+              value: "true"
+            - name: CATALOG_S3_ACCESS__KEY__ID
+              valueFrom:
+                secretKeyRef:
+                  name: iceberg-s3-secret
+                  key: access_key
+            - name: CATALOG_S3_SECRET__ACCESS__KEY
+              valueFrom:
+                secretKeyRef:
+                  name: iceberg-s3-secret
+                  key: secret_key
+            - name: CATALOG_S3_REGION
+              value: us-east-1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /v1/config
+              port: 8181
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /v1/config
+              port: 8181
+            initialDelaySeconds: 10
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iceberg-rest
+  namespace: platform-storage
+spec:
+  selector:
+    app: iceberg-rest
+  ports:
+    - name: rest
+      port: 8181
+      targetPort: 8181

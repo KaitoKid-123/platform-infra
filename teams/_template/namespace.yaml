@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-TEAM_NAME
+  labels:
+    name: team-TEAM_NAME
+    team: TEAM_NAME
+    env: production
+    data-platform/tier: tenant
+    data-platform/managed-by: argocd

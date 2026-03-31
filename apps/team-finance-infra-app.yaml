@@ -1,0 +1,25 @@
+# ArgoCD Application quản lý infra của team finance
+# Sync namespace, RBAC, quota, network policy từ teams/finance/
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: team-finance-infra
+  namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: platform-alerts
+spec:
+  project: default
+  source:
+    repoURL: http://gitea-http.platform-ops:3000/data-platform/platform-infra
+    targetRevision: main
+    path: teams/finance
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: team-finance
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
