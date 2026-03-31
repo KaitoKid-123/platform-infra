@@ -1,0 +1,138 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitea-runner-secret
+  namespace: platform-ops
+type: Opaque
+stringData:
+  registration-token: "HkYC3uaaWlklYRs9kD67b2CCs6ybqbmn2cETLL6m"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitea-runner-config
+  namespace: platform-ops
+data:
+  config.yaml: |
+    log:
+      level: info
+    runner:
+      file: /data/.runner
+      capacity: 2
+      envs:
+        DOCKER_HOST: tcp://localhost:2376
+        DOCKER_TLS_VERIFY: "0"
+      fetch_timeout: 5s
+      fetch_interval: 2s
+    cache:
+      enabled: false
+    container:
+      network: bridge
+      privileged: true
+      options: "--add-host=gitea-http.platform-ops:$(GITEA_IP)"
+      valid_volumes:
+        - "**"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea-act-runner
+  namespace: platform-ops
+  labels:
+    app: gitea-act-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitea-act-runner
+  template:
+    metadata:
+      labels:
+        app: gitea-act-runner
+    spec:
+      restartPolicy: Always
+      initContainers:
+        - name: register
+          image: gitea/act_runner:latest
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -f /data/.runner ]; then
+                act_runner register \
+                  --no-interactive \
+                  --instance http://gitea-http.platform-ops:3000 \
+                  --token $(RUNNER_TOKEN) \
+                  --name platform-runner \
+                  --labels ubuntu-latest:docker://node:20-bullseye,ubuntu-22.04:docker://node:20-bullseye
+                echo "Runner registered."
+              else
+                echo "Runner already registered, skipping."
+              fi
+          env:
+            - name: RUNNER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-runner-secret
+                  key: registration-token
+          volumeMounts:
+            - name: runner-data
+              mountPath: /data
+            - name: runner-config
+              mountPath: /config.yaml
+              subPath: config.yaml
+      containers:
+        - name: runner
+          image: gitea/act_runner:latest
+          command:
+            - act_runner
+            - daemon
+            - --config
+            - /config.yaml
+          env:
+            - name: DOCKER_HOST
+              value: tcp://localhost:2376
+            - name: DOCKER_TLS_VERIFY
+              value: "0"
+          volumeMounts:
+            - name: runner-data
+              mountPath: /data
+            - name: runner-config
+              mountPath: /config.yaml
+              subPath: config.yaml
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+        # Docker-in-Docker sidecar cho docker build/push
+        - name: dind
+          image: docker:24-dind
+          securityContext:
+            privileged: true
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
+          volumeMounts:
+            - name: docker-storage
+              mountPath: /var/lib/docker
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+
+      volumes:
+        - name: runner-data
+          emptyDir: {}
+        - name: runner-config
+          configMap:
+            name: gitea-runner-config
+        - name: docker-storage
+          emptyDir: {}
