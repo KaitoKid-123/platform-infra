@@ -21,8 +21,8 @@ data:
       file: /data/.runner
       capacity: 2
       envs:
-        DOCKER_HOST: tcp://localhost:2376
-        DOCKER_TLS_VERIFY: "0"
+        DOCKER_HOST: tcp://localhost:2375
+        DOCKER_TLS_VERIFY: ""
       fetch_timeout: 5s
       fetch_interval: 2s
     cache:
@@ -61,6 +61,7 @@ spec:
             - |
               if [ ! -f /data/.runner ]; then
                 act_runner register \
+                  --config /config.yaml \
                   --no-interactive \
                   --instance http://gitea-http.platform-ops:3000 \
                   --token $(RUNNER_TOKEN) \
@@ -86,13 +87,19 @@ spec:
         - name: runner
           image: gitea/act_runner:latest
           command:
-            - act_runner
-            - daemon
-            - --config
-            - /config.yaml
+            - sh
+            - -c
+            - |
+              echo "Waiting for Docker daemon on port 2375..."
+              until nc -z localhost 2375 2>/dev/null || \
+                    (echo > /dev/tcp/localhost/2375) 2>/dev/null; do
+                sleep 2
+              done
+              echo "Docker ready. Starting runner."
+              exec act_runner daemon --config /config.yaml
           env:
             - name: DOCKER_HOST
-              value: tcp://localhost:2376
+              value: tcp://localhost:2375
             - name: DOCKER_TLS_VERIFY
               value: "0"
           volumeMounts:
