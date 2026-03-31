@@ -1,0 +1,33 @@
+# Grant airflow-scheduler (platform-data) permission to manage SparkApplications
+# in team-finance namespace. Required for SparkKubernetesOperator to submit jobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: airflow-sparkapplication-role
+  namespace: team-finance
+rules:
+  - apiGroups:
+      - sparkoperator.k8s.io
+    resources:
+      - sparkapplications
+    verbs:
+      - create
+      - get
+      - list
+      - watch
+      - delete
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: airflow-sparkapplication-rolebinding
+  namespace: team-finance
+subjects:
+  - kind: ServiceAccount
+    name: airflow-scheduler
+    namespace: platform-data
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: airflow-sparkapplication-role
