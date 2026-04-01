@@ -7,9 +7,10 @@ gitea:
     app:
       APP_NAME: "Platform Gitea"
     server:
-      DOMAIN: 103.249.117.202
-      ROOT_URL: http://103.249.117.202:30300
-      SSH_DOMAIN: 103.249.117.202
+      DOMAIN: gitea-http.platform-ops
+      ROOT_URL: http://gitea-http.platform-ops:3000
+      LOCAL_ROOT_URL: http://gitea-http.platform-ops:3000
+      SSH_DOMAIN: 100.87.165.70
     repository:
       DEFAULT_BRANCH: main
       DEFAULT_PRIVATE: true

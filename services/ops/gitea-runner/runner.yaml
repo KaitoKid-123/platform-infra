@@ -1,5 +1,18 @@
 ---
 apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-runner-data
+  namespace: platform-ops
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
 kind: Secret
 metadata:
   name: gitea-runner-secret
@@ -28,9 +41,8 @@ data:
     cache:
       enabled: false
     container:
-      network: bridge
+      network: host
       privileged: true
-      options: "--add-host=gitea-http.platform-ops:$(GITEA_IP)"
       valid_volumes:
         - "**"
 ---
@@ -66,7 +78,7 @@ spec:
                   --instance http://gitea-http.platform-ops:3000 \
                   --token $(RUNNER_TOKEN) \
                   --name platform-runner \
-                  --labels ubuntu-latest:docker://node:20-bullseye,ubuntu-22.04:docker://node:20-bullseye
+                  --labels ubuntu-latest:docker://nikolaik/python-nodejs:python3.10-nodejs20,ubuntu-22.04:docker://nikolaik/python-nodejs:python3.10-nodejs20
                 echo "Runner registered."
               else
                 echo "Runner already registered, skipping."
@@ -111,14 +123,16 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 128Mi
+              memory: 256Mi
             limits:
               cpu: 500m
-              memory: 512Mi
+              memory: 1Gi
 
         # Docker-in-Docker sidecar cho docker build/push
         - name: dind
           image: docker:24-dind
+          args:
+            - --insecure-registry=gitea-http.platform-ops:3000
           securityContext:
             privileged: true
           env:
@@ -137,7 +151,8 @@ spec:
 
       volumes:
         - name: runner-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: gitea-runner-data
         - name: runner-config
           configMap:
             name: gitea-runner-config
