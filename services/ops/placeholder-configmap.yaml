@@ -1,0 +1,10 @@
+# Placeholder - Gitea resources removed after GitHub migration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ops-placeholder
+  namespace: platform-ops
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+data:
+  note: "Gitea removed - migrated to GitHub/GHCR"

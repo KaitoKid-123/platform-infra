@@ -1,11 +1,6 @@
+# Gitea resources removed - migrated to GitHub + GHCR
+# All Gitea runner resources are now pruned by ArgoCD
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# Gitea resources removed - migrated to GitHub + GHCR
-# [DISABLED - cluster quá nhỏ] Harbor: cần ~0.5 CPU, ~1 GB RAM, ~240 GB storage
-# helmCharts:
-#   - name: harbor
-#     repo: https://helm.goharbor.io
-#     version: 1.14.0
-#     releaseName: harbor
-#     namespace: platform-ops
-#     valuesFile: harbor/values.yaml
+resources:
+  - placeholder-configmap.yaml
