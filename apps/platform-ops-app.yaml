@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: http://gitea-http.platform-ops:3000/data-platform/platform-infra
+    repoURL: https://github.com/KaitoKid-123/platform-infra
     targetRevision: main
     path: services/ops
   destination:

@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - gitea-dags-secret.yaml
+  - github-dags-token.yaml
   - airflow-nodeport.yaml
 helmCharts:
   - name: airflow

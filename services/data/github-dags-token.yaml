@@ -1,0 +1,16 @@
+# GitHub Personal Access Token (PAT) for Airflow git-sync to pull DAGs
+# Create PAT at: https://github.com/settings/tokens
+# Required scopes: repo (full control)
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-dags-token
+  namespace: platform-data
+type: Opaque
+stringData:
+  # Replace with your GitHub PAT
+  # Generate at: https://github.com/settings/tokens
+  # Scopes needed: repo (for private repos) or public_repo (for public repos)
+  GIT_SYNC_USERNAME: "KaitoKid-123"
+  GIT_SYNC_PASSWORD: "ghp_REPLACE_WITH_YOUR_PAT_TOKEN"

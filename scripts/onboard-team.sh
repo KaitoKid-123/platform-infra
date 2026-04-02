@@ -255,12 +255,11 @@ log_info "[7/7] Setting up Gitea Container Registry..."
 
 if [[ -z "$GITEA_TOKEN" ]]; then
   log_warn "  GITEA_TOKEN not set, skipping Container Registry setup"
-  log_warn "  Team can push images to: gitea-http.platform-ops:3000/team-$TEAM/<image>"
+  log_warn "  Team can push images to: ghcr.io/<github-org>/team-$TEAM/<image>"
 else
-  # Gitea Container Registry tự động tạo package khi push image đầu tiên
-  # Chỉ cần đảm bảo org team-$TEAM đã có (đã tạo ở Step 6)
-  log_info "  Gitea Container Registry ready for team-$TEAM"
-  log_info "  Push images to: gitea-http.platform-ops:3000/team-$TEAM/<image>:<tag>"
+  # GHCR (GitHub Container Registry) tự động tạo package khi push image đầu tiên
+  log_info "  GitHub Container Registry ready for team-$TEAM"
+  log_info "  Push images to: ghcr.io/<github-org>/team-$TEAM/<image>:<tag>"
 fi
 
 # =============================================================================
@@ -277,7 +276,7 @@ echo "  S3 bucket:       s3://team-$TEAM"
 echo "  K8s secret:      team-$TEAM-s3-creds (in namespace team-$TEAM)"
 echo "  Iceberg ns:      iceberg.$TEAM"
 echo "  Gitea repos:     team-$TEAM/{${TEAM}-app, ${TEAM}-config}"
-echo "  Container Reg:   gitea-http.platform-ops:3000/team-$TEAM/"
+echo "  Container Reg:   ghcr.io/<github-org>/team-$TEAM/"
 echo ""
 echo "Next steps:"
 echo "  1. Commit teams/$TEAM/ và secrets/teams/$TEAM/ to Git (ArgoCD will sync)"

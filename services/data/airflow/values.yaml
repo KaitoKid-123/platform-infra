@@ -20,14 +20,14 @@ env:
 dags:
   gitSync:
     enabled: true
-    repo: http://gitea-http.platform-ops:3000/data-platform/platform-dags
+    repo: https://github.com/KaitoKid-123/platform-dags.git
     branch: main
     subPath: dags
     wait: 60
     containerName: git-sync
     uid: 65533
     extraVolumeMounts: []
-    credentialsSecret: gitea-dags-secret
+    credentialsSecret: github-dags-token
 webserver:
   replicas: 1
   args: ["bash", "-c", "exec airflow webserver --port 8080 -w 1"]

@@ -41,10 +41,8 @@ data:
     cache:
       enabled: false
     container:
-      network: host
+      network: ""
       privileged: true
-      valid_volumes:
-        - "**"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -63,6 +61,15 @@ spec:
       labels:
         app: gitea-act-runner
     spec:
+      hostAliases:
+        - ip: "10.98.236.132"
+          hostnames:
+            - docker-registry.platform-storage
+            - docker-registry.platform-storage.svc.cluster.local
+        - ip: "10.96.69.19"
+          hostnames:
+            - gitea-http.platform-ops
+            - gitea-http.platform-ops.svc.cluster.local
       restartPolicy: Always
       initContainers:
         - name: register
@@ -127,12 +134,21 @@ spec:
             limits:
               cpu: 500m
               memory: 1Gi
-
-        # Docker-in-Docker sidecar cho docker build/push
         - name: dind
           image: docker:24-dind
-          args:
-            - --insecure-registry=gitea-http.platform-ops:3000
+          command:
+            - sh
+            - -c
+            - |
+              dockerd \
+                --insecure-registry=docker-registry.platform-storage:5000 \
+                --host=unix:///var/run/docker.sock \
+                --host=tcp://0.0.0.0:2375 \
+                --storage-driver=overlay2 &
+              echo "Waiting for Docker daemon..."
+              until docker info > /dev/null 2>&1; do sleep 1; done
+              echo "Docker daemon ready."
+              exec tail -f /dev/null
           securityContext:
             privileged: true
           env:
@@ -148,7 +164,6 @@ spec:
             limits:
               cpu: 2000m
               memory: 2Gi
-
       volumes:
         - name: runner-data
           persistentVolumeClaim:

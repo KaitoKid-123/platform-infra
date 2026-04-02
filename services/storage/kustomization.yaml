@@ -6,6 +6,7 @@ resources:
   - iceberg-rest.yaml
   - iceberg-postgres.yaml
   - iceberg-s3-secret.yaml
+  - docker-registry.yaml
   # [DISABLED - không có raw disk] Rook-Ceph
   # - rook-operator.yaml
   # - ceph-cluster.yaml
