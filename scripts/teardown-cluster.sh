@@ -2,7 +2,7 @@
 # =============================================================================
 # teardown-cluster.sh
 # Mục đích: Xóa toàn bộ Data Platform khỏi cluster (ngược lại bootstrap)
-# Thứ tự: ArgoCD → Gitea → MinIO → local-path-provisioner
+# Thứ tự: ArgoCD → Data/Compute → Storage → local-path-provisioner
 #
 # Usage:   bash teardown-cluster.sh [--yes]
 # Flag:    --yes   Bỏ qua xác nhận (dùng cho CI)
@@ -91,24 +91,7 @@ else
 fi
 
 # ══════════════════════════════════════════════════
-log_step "Phase 2: Xóa Gitea"
-# ══════════════════════════════════════════════════
-
-if helm status gitea -n platform-ops &>/dev/null; then
-  log_info "Helm uninstall gitea..."
-  helm uninstall gitea -n platform-ops --timeout 120s 2>/dev/null || true
-else
-  log_warn "Gitea helm release không tồn tại, bỏ qua"
-fi
-
-# Xóa PVC còn sót (resource policy: keep)
-if kubectl get namespace platform-ops &>/dev/null; then
-  log_info "Xóa PVC trong platform-ops..."
-  kubectl delete pvc --all -n platform-ops --timeout=60s 2>/dev/null || true
-fi
-
-# ══════════════════════════════════════════════════
-log_step "Phase 3: Xóa Data & Compute services"
+log_step "Phase 2: Xóa Data & Compute services"
 # ══════════════════════════════════════════════════
 
 for ns in platform-data platform-compute; do
@@ -122,7 +105,7 @@ for ns in platform-data platform-compute; do
 done
 
 # ══════════════════════════════════════════════════
-log_step "Phase 4: Xóa MinIO"
+log_step "Phase 3: Xóa MinIO"
 # ══════════════════════════════════════════════════
 
 if kubectl get namespace platform-storage &>/dev/null; then
@@ -134,7 +117,7 @@ else
 fi
 
 # ══════════════════════════════════════════════════
-log_step "Phase 5: Xóa local-path-provisioner"
+log_step "Phase 4: Xóa local-path-provisioner"
 # ══════════════════════════════════════════════════
 
 log_info "Xóa PersistentVolumes..."
@@ -148,7 +131,7 @@ else
 fi
 
 # ══════════════════════════════════════════════════
-log_step "Phase 6: Xóa namespaces"
+log_step "Phase 5: Xóa namespaces"
 # ══════════════════════════════════════════════════
 
 for ns in platform-ops platform-data platform-compute platform-storage monitoring team-finance local-path-storage; do
@@ -164,10 +147,10 @@ for ns in argocd platform-ops platform-data platform-compute platform-storage mo
 done
 
 # ══════════════════════════════════════════════════
-log_step "Phase 7: Cleanup Helm repos"
+log_step "Phase 6: Cleanup Helm repos"
 # ══════════════════════════════════════════════════
 
-for repo in gitea gitea-charts; do
+for repo in spark-operator spark-operator-charts; do
   if helm repo list 2>/dev/null | grep -q "^$repo"; then
     log_info "Xóa Helm repo $repo..."
     helm repo remove "$repo" 2>/dev/null || true

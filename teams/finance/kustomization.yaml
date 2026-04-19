@@ -9,3 +9,4 @@ resources:
   - rbac/service-account.yaml
   - rbac/role-binding.yaml
   - rbac/airflow-sparkapplication-role.yaml
+  - ../../secrets/teams/finance/sealed-s3-creds.yaml

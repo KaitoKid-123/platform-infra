@@ -6,3 +6,4 @@ resources:
   - network-policy.yaml
   - rbac/service-account.yaml
   - rbac/role-binding.yaml
+  - ../../secrets/teams/TEAM_NAME/sealed-s3-creds.yaml

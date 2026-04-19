@@ -28,15 +28,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 TEMPLATE_DIR="$REPO_ROOT/teams/_template"
 TEAMS_DIR="$REPO_ROOT/teams"
-GITEA_TOKEN="${GITEA_TOKEN:-}"  # Set từ env hoặc Vault
 
-# Auto-detect endpoints via ClusterIP (internal)
-GITEA_HOST="http://$(kubectl get svc gitea-http -n platform-ops \
-  -o jsonpath='{.spec.clusterIP}' 2>/dev/null):3000"
-ICEBERG_REST="http://$(kubectl get svc iceberg-rest -n platform-storage \
-  -o jsonpath='{.spec.clusterIP}' 2>/dev/null):8181"
-MINIO_ENDPOINT="http://$(kubectl get svc minio -n platform-storage \
-  -o jsonpath='{.spec.clusterIP}' 2>/dev/null):9000"
+# Auto-detect endpoints via internal DNS (no need for ClusterIP)
+ICEBERG_REST="http://iceberg-rest.platform-storage:8181"
+MINIO_ENDPOINT="http://minio.platform-storage:9000"
 AWS_CLI_EP="--endpoint-url $MINIO_ENDPOINT"
 
 # MinIO credentials
@@ -46,9 +41,8 @@ MINIO_ROOT_PASSWORD=$(kubectl get secret minio-credentials -n platform-storage \
   -o jsonpath='{.data.root_password}' 2>/dev/null | base64 -d || echo "")
 
 log_info "Detected endpoints:"
-log_info "  Gitea:        $GITEA_HOST"
-log_info "  Iceberg REST: $ICEBERG_REST"
 log_info "  MinIO S3:     $MINIO_ENDPOINT"
+log_info "  Iceberg REST: $ICEBERG_REST"
 
 # ---- Validate team name ----
 if [[ ! "$TEAM" =~ ^[a-z][a-z0-9-]{1,20}$ ]]; then
@@ -74,7 +68,7 @@ apply() {
 # =============================================================================
 # STEP 1: Generate K8s manifests from template
 # =============================================================================
-log_info "[1/7] Generating K8s manifests from template..."
+log_info "[1/6] Generating K8s manifests from template..."
 
 TEAM_DIR="$TEAMS_DIR/$TEAM"
 if [[ -d "$TEAM_DIR" ]]; then
@@ -109,14 +103,13 @@ resources:
   - rbac/role-binding.yaml
   - ../../secrets/teams/$TEAM/sealed-s3-creds.yaml
 EOF
-
   log_info "  Generated kustomization.yaml"
 fi
 
 # =============================================================================
 # STEP 2: Apply K8s manifests
 # =============================================================================
-log_info "[2/7] Applying K8s manifests..."
+log_info "[2/6] Applying K8s manifests..."
 apply kubectl apply -k "$TEAM_DIR/"
 apply kubectl wait --for=condition=ready \
   namespace/team-$TEAM --timeout=30s 2>/dev/null || true
@@ -125,13 +118,11 @@ log_info "  Namespace team-$TEAM created"
 # =============================================================================
 # STEP 3: Create S3 bucket in MinIO
 # =============================================================================
-log_info "[3/7] Creating S3 bucket in MinIO..."
+log_info "[3/6] Creating S3 bucket in MinIO..."
 
-# Team dùng chung MinIO credentials (root)
 S3_ACCESS_KEY="$MINIO_ROOT_USER"
 S3_SECRET_KEY="$MINIO_ROOT_PASSWORD"
 
-# Tạo bucket qua mc (MinIO Client) pod
 if [[ "$DRY_RUN" != "true" ]]; then
   kubectl run "mc-onboard-$TEAM" --rm -i --restart=Never \
     --namespace platform-storage \
@@ -149,7 +140,7 @@ fi
 # =============================================================================
 # STEP 4: Create K8s Secret với S3 credentials
 # =============================================================================
-log_info "[4/7] Creating K8s secret for S3 credentials..."
+log_info "[4/6] Creating K8s secret for S3 credentials..."
 
 if [[ "$DRY_RUN" != "true" ]]; then
   kubectl create secret generic "team-$TEAM-s3-creds" \
@@ -182,7 +173,7 @@ fi
 # =============================================================================
 # STEP 5: Create Iceberg namespace
 # =============================================================================
-log_info "[5/7] Creating Iceberg namespace..."
+log_info "[5/6] Creating Iceberg namespace..."
 
 HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
   "$ICEBERG_REST/v1/namespaces/$TEAM")
@@ -204,63 +195,11 @@ else
 fi
 
 # =============================================================================
-# STEP 6: Create Gitea repositories
+# STEP 6: GitHub Container Registry info
 # =============================================================================
-log_info "[6/7] Creating Gitea repositories..."
-
-if [[ -z "$GITEA_TOKEN" ]]; then
-  log_warn "  GITEA_TOKEN not set, skipping Gitea repo creation"
-  log_warn "  Set GITEA_TOKEN env variable and re-run, or create repos manually"
-else
-  # Tạo org cho team nếu chưa có
-  ORG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-    -H "Authorization: token $GITEA_TOKEN" \
-    "$GITEA_HOST/api/v1/orgs/team-$TEAM")
-
-  if [[ "$ORG_STATUS" != "200" ]]; then
-    apply curl -s -X POST "$GITEA_HOST/api/v1/orgs" \
-      -H "Authorization: token $GITEA_TOKEN" \
-      -H "Content-Type: application/json" \
-      -d "{\"username\": \"team-$TEAM\", \"visibility\": \"private\"}"
-    log_info "  Created Gitea org: team-$TEAM"
-  fi
-
-  # Tạo repos
-  for REPO in "${TEAM}-app" "${TEAM}-config"; do
-    REPO_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-      -H "Authorization: token $GITEA_TOKEN" \
-      "$GITEA_HOST/api/v1/repos/team-$TEAM/$REPO")
-
-    if [[ "$REPO_STATUS" == "200" ]]; then
-      log_warn "  Repo already exists: team-$TEAM/$REPO"
-    else
-      apply curl -s -X POST "$GITEA_HOST/api/v1/orgs/team-$TEAM/repos" \
-        -H "Authorization: token $GITEA_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{\
-          \"name\": \"$REPO\",\
-          \"private\": true,\
-          \"auto_init\": true,\
-          \"default_branch\": \"main\"\
-        }"
-      log_info "  Created repo: team-$TEAM/$REPO"
-    fi
-  done
-fi
-
-# =============================================================================
-# STEP 7: Setup Gitea Container Registry for team
-# =============================================================================
-log_info "[7/7] Setting up Gitea Container Registry..."
-
-if [[ -z "$GITEA_TOKEN" ]]; then
-  log_warn "  GITEA_TOKEN not set, skipping Container Registry setup"
-  log_warn "  Team can push images to: ghcr.io/<github-org>/team-$TEAM/<image>"
-else
-  # GHCR (GitHub Container Registry) tự động tạo package khi push image đầu tiên
-  log_info "  GitHub Container Registry ready for team-$TEAM"
-  log_info "  Push images to: ghcr.io/<github-org>/team-$TEAM/<image>:<tag>"
-fi
+log_info "[6/6] Container Registry info..."
+log_info "  Use GitHub Container Registry (GHCR):"
+log_info "    ghcr.io/<github-org>/team-$TEAM/<image>:<tag>"
 
 # =============================================================================
 # SUMMARY
@@ -275,11 +214,12 @@ echo "  K8s namespace:   team-$TEAM"
 echo "  S3 bucket:       s3://team-$TEAM"
 echo "  K8s secret:      team-$TEAM-s3-creds (in namespace team-$TEAM)"
 echo "  Iceberg ns:      iceberg.$TEAM"
-echo "  Gitea repos:     team-$TEAM/{${TEAM}-app, ${TEAM}-config}"
 echo "  Container Reg:   ghcr.io/<github-org>/team-$TEAM/"
 echo ""
 echo "Next steps:"
-echo "  1. Commit teams/$TEAM/ và secrets/teams/$TEAM/ to Git (ArgoCD will sync)"
-echo "  2. Clone ${TEAM}-app, ${TEAM}-config repos và bắt đầu code"
+echo "  1. Commit teams/$TEAM/ và secrets/teams/$TEAM/ to GitHub"
+echo "     (ArgoCD will sync automatically)"
+echo "  2. Push team Docker images to: ghcr.io/<github-org>/team-$TEAM/<image>"
 echo "  3. Add team DAGs to platform-dags/dags/$TEAM/"
+echo "  4. Add SparkApp YAMLs to platform-dags/dags/$TEAM/spark-apps/"
 echo ""

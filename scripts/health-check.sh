@@ -64,8 +64,8 @@ echo ""
 echo -e "${BOLD}Data Platform Health Check — $(date)${NC}"
 echo "================================================================"
 
-# Node IP cho NodePort checks — ưu tiên env, fallback public IP
-NODE_IP="${NODE_IP:-103.249.117.202}"
+# Node IP cho NodePort checks — ưu tiên env, fallback Node 1
+NODE_IP="${NODE_IP:-103.249.117.229}"
 
 # ---- K8s Cluster ----
 echo -e "\n${BOLD}K8s Cluster${NC}"
@@ -89,16 +89,17 @@ check "MinIO S3 health" \
 check "MinIO Console reachable" \
   "curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://${NODE_IP}:30901 2>/dev/null" \
   "200"
+check "Iceberg REST running" \
+  "kubectl get pods -n platform-storage -l app=iceberg-rest --no-headers 2>/dev/null | grep -c Running"
+check "Iceberg PostgreSQL running" \
+  "kubectl get pods -n platform-storage -l app=iceberg-postgres --no-headers 2>/dev/null | grep -c Running"
 
-# ---- Platform Ops ----
-echo -e "\n${BOLD}Platform Ops${NC}"
-check "Gitea pod running" \
-  "kubectl get pods -n platform-ops -l 'app.kubernetes.io/name=gitea' --no-headers | grep -c Running"
-check "Gitea web reachable" \
-  "curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://${NODE_IP}:30300 2>/dev/null" \
-  "200"
+# ---- ArgoCD (GitOps) ----
+echo -e "\n${BOLD}GitOps Layer (ArgoCD)${NC}"
 check "ArgoCD server running" \
   "kubectl get pods -n argocd -l 'app.kubernetes.io/name=argocd-server' --no-headers 2>/dev/null | grep -c Running"
+check "ArgoCD repo-server running" \
+  "kubectl get pods -n argocd -l 'app.kubernetes.io/name=argocd-repo-server' --no-headers 2>/dev/null | grep -c Running"
 
 # ---- Compute ----
 echo -e "\n${BOLD}Compute Layer${NC}"
@@ -111,6 +112,11 @@ check "Airflow webserver running" \
   "kubectl get pods -n platform-data -l component=webserver --no-headers 2>/dev/null | grep -c Running"
 check "Airflow scheduler running" \
   "kubectl get pods -n platform-data -l component=scheduler --no-headers 2>/dev/null | grep -c Running"
+
+# ---- Finance Team ----
+echo -e "\n${BOLD}Team Finance${NC}"
+check "Spark driver history running" \
+  "kubectl get pods -n team-finance -l 'spark-role=driver' --no-headers 2>/dev/null | grep -c Running || echo 0"
 
 # ---- PVC Status ----
 echo -e "\n${BOLD}PVC Status${NC}"
@@ -125,8 +131,7 @@ echo -e "${BOLD}Summary${NC}"
 echo -e "  ${GREEN}Passed: $CHECKS_PASSED${NC}  |  ${YELLOW}Warned: $CHECKS_WARNED${NC}  |  ${RED}Failed: $CHECKS_FAILED${NC}"
 echo ""
 echo "  NodePort endpoints (access via $NODE_IP):"
-echo "    :30300 Gitea  |  :30443 ArgoCD  |  :30808 Airflow"
-echo "    :30900 MinIO S3  |  :30901 MinIO Console"
+echo "    :30080 Airflow  |  :30443 ArgoCD  |  :30901 MinIO Console"
 
 # JSON output
 if [[ "$JSON_OUTPUT" == "true" ]] && command -v jq &>/dev/null; then

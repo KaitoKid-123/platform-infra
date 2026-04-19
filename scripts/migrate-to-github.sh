@@ -1,14 +1,25 @@
 #!/usr/bin/env bash
+# =============================================================================
 # migrate-to-github.sh
 # Migrate repos from Gitea to GitHub
-# Usage: ./migrate-to-github.sh
+# NOTE: This script is kept for historical reference. Migration is complete.
+#       Gitea resources have been removed; platform now uses GitHub exclusively.
+# =============================================================================
 
 set -euo pipefail
 
 GITHUB_USER="${GITHUB_USER:-KaitoKid-123}"
-GITEA_BASE="http://localhost:13000"  # Gitea git clone URL base
 
-echo "=== Gitea to GitHub Migration ==="
+echo "=== Gitea → GitHub Migration (Completed) ==="
+echo "GitHub User: $GITHUB_USER"
+echo ""
+echo "Migration status: COMPLETE"
+echo "  - platform-infra: https://github.com/$GITHUB_USER/platform-infra"
+echo "  - platform-dags:  https://github.com/$GITHUB_USER/platform-dags"
+echo "  - finance-app:    https://github.com/$GITHUB_USER/finance-app"
+echo ""
+echo "Gitea resources have been removed from the platform."
+echo "Use bootstrap-cluster.sh for fresh cluster setup."
 echo "GitHub User: $GITHUB_USER"
 echo ""
 
@@ -48,18 +59,4 @@ update_remote "/home/khang/Data-Platform/platform-dags" "platform-dags"
 update_remote "/home/khang/Data-Platform/team-finance/finance-app" "finance-app"
 
 echo ""
-echo "STEP 3: Update ArgoCD Applications to GitHub"
-echo "ArgoCD apps now point to: https://github.com/$GITHUB_USER/platform-infra"
-echo ""
-echo "Apply updated manifests:"
-echo "  kubectl apply -f platform-infra/apps/"
-
-echo ""
-echo "=== Done ==="
-echo ""
-echo "Next steps:"
-echo "1. Verify repos on GitHub: https://github.com/$GITHUB_USER"
-echo "2. Create GitHub PAT with 'repo' scope for ArgoCD"
-echo "3. Apply secrets: platform-infra/secrets/services/argocd-github-token.yaml"
-echo "4. Apply ArgoCD apps: kubectl apply -f platform-infra/apps/"
-echo "5. Delete old Gitea repos (optional)"
+echo "Migration artifact preserved for documentation purposes."
