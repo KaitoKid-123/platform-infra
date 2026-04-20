@@ -91,7 +91,7 @@ else
     done
   fi
 
-  # Generate kustomization.yaml
+  # Generate kustomization.yaml — s3-credentials.yaml is in the same dir (no cross-dir)
   cat > "$TEAM_DIR/kustomization.yaml" << EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -101,7 +101,7 @@ resources:
   - network-policy.yaml
   - rbac/service-account.yaml
   - rbac/role-binding.yaml
-  - ../../secrets/teams/$TEAM/sealed-s3-creds.yaml
+  - s3-credentials.yaml
 EOF
   log_info "  Generated kustomization.yaml"
 fi

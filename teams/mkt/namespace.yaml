@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-mkt
+  labels:
+    name: team-mkt
+    team: mkt
+    env: production
+    data-platform/tier: tenant
+    data-platform/managed-by: argocd
