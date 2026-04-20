@@ -68,7 +68,7 @@ apply() {
 # =============================================================================
 # STEP 1: Generate K8s manifests from template
 # =============================================================================
-log_info "[1/7] Generating K8s manifests from template..."
+log_info "[1/8] Generating K8s manifests from template..."
 
 TEAM_DIR="$TEAMS_DIR/$TEAM"
 if [[ -d "$TEAM_DIR" ]]; then
@@ -107,9 +107,15 @@ EOF
 fi
 
 # =============================================================================
-# STEP 3: Create K8s Secret với S3 credentials (trước khi apply manifests)
+# STEP 3: Create namespace (needed before creating secret)
 # =============================================================================
-log_info "[3/6] Creating K8s secret for S3 credentials..."
+log_info "[3/7] Creating namespace team-$TEAM..."
+apply kubectl create namespace "team-$TEAM" --dry-run=client -o yaml | kubectl apply -f -
+
+# =============================================================================
+# STEP 4: Create K8s Secret với S3 credentials
+# =============================================================================
+log_info "[4/7] Creating K8s secret for S3 credentials..."
 
 S3_ACCESS_KEY="$MINIO_ROOT_USER"
 S3_SECRET_KEY="$MINIO_ROOT_PASSWORD"
@@ -124,18 +130,15 @@ if [[ "$DRY_RUN" != "true" ]]; then
 fi
 
 # =============================================================================
-# STEP 4: Apply K8s manifests
+# STEP 5: Apply remaining K8s manifests (RBAC, quota, network policy)
 # =============================================================================
-log_info "[4/6] Applying K8s manifests..."
+log_info "[5/7] Applying K8s manifests..."
 apply kubectl apply -k "$TEAM_DIR/"
-apply kubectl wait --for=condition=ready \
-  namespace/team-$TEAM --timeout=30s 2>/dev/null || true
-log_info "  Namespace team-$TEAM created"
 
 # =============================================================================
-# STEP 5: Create S3 bucket in MinIO
+# STEP 6: Create S3 bucket in MinIO
 # =============================================================================
-log_info "[5/6] Creating S3 bucket in MinIO..."
+log_info "[6/7] Creating S3 bucket in MinIO..."
 
 if [[ "$DRY_RUN" != "true" ]]; then
   kubectl run "mc-onboard-$TEAM" --rm -i --restart=Never \
@@ -152,9 +155,9 @@ else
 fi
 
 # =============================================================================
-# STEP 6: Create Iceberg namespace (via temp pod — Iceberg only reachable inside cluster)
+# STEP 7: Create Iceberg namespace (via temp pod — Iceberg only reachable inside cluster)
 # =============================================================================
-log_info "[6/7] Creating Iceberg namespace..."
+log_info "[7/7] Creating Iceberg namespace..."
 
 if [[ "$DRY_RUN" != "true" ]]; then
   # Check if namespace already exists
@@ -178,7 +181,7 @@ else
 fi
 
 # =============================================================================
-# STEP 7: Generate ArgoCD Application
+# STEP 8: Generate ArgoCD Application
 # =============================================================================
 log_info "[7/7] Generating ArgoCD Application..."
 

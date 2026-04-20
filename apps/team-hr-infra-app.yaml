@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: team-hr-infra
+  namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: platform-alerts
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/KaitoKid-123/platform-infra
+    targetRevision: main
+    path: teams/hr
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: team-hr
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
