@@ -84,7 +84,7 @@ echo -e "\n${BOLD}Storage Layer (MinIO)${NC}"
 check "MinIO pod running" \
   "kubectl get pods -n platform-storage -l app=minio --no-headers | grep -c Running"
 check "MinIO S3 health" \
-  "curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://${NODE_IP}:30900/minio/health/ready 2>/dev/null" \
+  "curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://${NODE_IP}:30901/minio/health/ready 2>/dev/null" \
   "200"
 check "MinIO Console reachable" \
   "curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://${NODE_IP}:30901 2>/dev/null" \
