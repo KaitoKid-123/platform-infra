@@ -68,7 +68,7 @@ apply() {
 # =============================================================================
 # STEP 1: Generate K8s manifests from template
 # =============================================================================
-log_info "[1/6] Generating K8s manifests from template..."
+log_info "[1/7] Generating K8s manifests from template..."
 
 TEAM_DIR="$TEAMS_DIR/$TEAM"
 if [[ -d "$TEAM_DIR" ]]; then
@@ -107,40 +107,12 @@ EOF
 fi
 
 # =============================================================================
-# STEP 2: Apply K8s manifests
+# STEP 3: Create K8s Secret với S3 credentials (trước khi apply manifests)
 # =============================================================================
-log_info "[2/6] Applying K8s manifests..."
-apply kubectl apply -k "$TEAM_DIR/"
-apply kubectl wait --for=condition=ready \
-  namespace/team-$TEAM --timeout=30s 2>/dev/null || true
-log_info "  Namespace team-$TEAM created"
-
-# =============================================================================
-# STEP 3: Create S3 bucket in MinIO
-# =============================================================================
-log_info "[3/6] Creating S3 bucket in MinIO..."
+log_info "[3/6] Creating K8s secret for S3 credentials..."
 
 S3_ACCESS_KEY="$MINIO_ROOT_USER"
 S3_SECRET_KEY="$MINIO_ROOT_PASSWORD"
-
-if [[ "$DRY_RUN" != "true" ]]; then
-  kubectl run "mc-onboard-$TEAM" --rm -i --restart=Never \
-    --namespace platform-storage \
-    --image=minio/mc:RELEASE.2024-01-28T16-23-14Z \
-    -- sh -c "
-      mc alias set myminio $MINIO_ENDPOINT $S3_ACCESS_KEY '$S3_SECRET_KEY' && \
-      mc mb --ignore-existing myminio/team-$TEAM && \
-      echo 'Bucket team-$TEAM created'
-    " 2>/dev/null || log_warn "  Bucket may already exist"
-  log_info "  Created S3 bucket: team-$TEAM"
-else
-  log_warn "[DRY RUN] Would create S3 bucket: team-$TEAM"
-fi
-
-# =============================================================================
-# STEP 4: Create K8s Secret với S3 credentials
-# =============================================================================
-log_info "[4/6] Creating K8s secret for S3 credentials..."
 
 if [[ "$DRY_RUN" != "true" ]]; then
   kubectl create secret generic "team-$TEAM-s3-creds" \
@@ -149,31 +121,40 @@ if [[ "$DRY_RUN" != "true" ]]; then
     --namespace="team-$TEAM" \
     --dry-run=client -o yaml | kubectl apply -f -
   log_info "  K8s secret created: team-$TEAM-s3-creds"
-
-  # Lưu plain Secret YAML vào repo để ArgoCD sync
-  SECRET_DIR="$REPO_ROOT/secrets/teams/$TEAM"
-  mkdir -p "$SECRET_DIR"
-  cat > "$SECRET_DIR/sealed-s3-creds.yaml" << SECRETEOF
-# Plain Secret cho dev cluster (khong co sealed-secrets controller)
-# Chua MinIO credentials cho team-$TEAM namespace
-# Doi sang SealedSecret khi co sealed-secrets controller
-apiVersion: v1
-kind: Secret
-metadata:
-  name: team-$TEAM-s3-creds
-  namespace: team-$TEAM
-type: Opaque
-stringData:
-  access_key: "$S3_ACCESS_KEY"
-  secret_key: "$S3_SECRET_KEY"
-SECRETEOF
-  log_info "  Saved secret YAML: secrets/teams/$TEAM/sealed-s3-creds.yaml"
 fi
 
 # =============================================================================
-# STEP 5: Create Iceberg namespace
+# STEP 4: Apply K8s manifests
 # =============================================================================
-log_info "[5/6] Creating Iceberg namespace..."
+log_info "[4/6] Applying K8s manifests..."
+apply kubectl apply -k "$TEAM_DIR/"
+apply kubectl wait --for=condition=ready \
+  namespace/team-$TEAM --timeout=30s 2>/dev/null || true
+log_info "  Namespace team-$TEAM created"
+
+# =============================================================================
+# STEP 5: Create S3 bucket in MinIO
+# =============================================================================
+log_info "[5/6] Creating S3 bucket in MinIO..."
+
+if [[ "$DRY_RUN" != "true" ]]; then
+  kubectl run "mc-onboard-$TEAM" --rm -i --restart=Never \
+    --namespace platform-storage \
+    --image=minio/mc:RELEASE.2024-01-28T16-23-14Z \
+    --command -- sh -c "
+      mc alias set myminio '$MINIO_ENDPOINT' '$S3_ACCESS_KEY' '$S3_SECRET_KEY' &&
+      mc mb --ignore-existing myminio/team-$TEAM &&
+      echo 'Bucket team-$TEAM created'
+    " || log_warn "  Bucket may already exist"
+  log_info "  Created S3 bucket: team-$TEAM"
+else
+  log_warn "[DRY RUN] Would create S3 bucket: team-$TEAM"
+fi
+
+# =============================================================================
+# STEP 6: Create Iceberg namespace
+# =============================================================================
+log_info "[6/7] Creating Iceberg namespace..."
 
 HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
   "$ICEBERG_REST/v1/namespaces/$TEAM")
@@ -195,9 +176,9 @@ else
 fi
 
 # =============================================================================
-# STEP 6: Generate ArgoCD Application
+# STEP 7: Generate ArgoCD Application
 # =============================================================================
-log_info "[6/6] Generating ArgoCD Application..."
+log_info "[7/7] Generating ArgoCD Application..."
 
 APPS_DIR="$REPO_ROOT/apps"
 mkdir -p "$APPS_DIR"
