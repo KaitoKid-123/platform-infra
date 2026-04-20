@@ -195,11 +195,44 @@ else
 fi
 
 # =============================================================================
-# STEP 6: GitHub Container Registry info
+# STEP 6: Generate ArgoCD Application
 # =============================================================================
-log_info "[6/6] Container Registry info..."
-log_info "  Use GitHub Container Registry (GHCR):"
-log_info "    ghcr.io/<github-org>/team-$TEAM/<image>:<tag>"
+log_info "[6/6] Generating ArgoCD Application..."
+
+APPS_DIR="$REPO_ROOT/apps"
+mkdir -p "$APPS_DIR"
+APP_FILE="$APPS_DIR/team-$TEAM-infra-app.yaml"
+
+if [[ -f "$APP_FILE" ]]; then
+  log_warn "  ArgoCD app already exists: $APP_FILE"
+else
+  cat > "$APP_FILE" << EOF
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: team-$TEAM-infra
+  namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: platform-alerts
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/KaitoKid-123/platform-infra
+    targetRevision: main
+    path: teams/$TEAM
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: team-$TEAM
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+EOF
+  log_info "  Generated: $APP_FILE"
+fi
 
 # =============================================================================
 # SUMMARY
@@ -214,11 +247,15 @@ echo "  K8s namespace:   team-$TEAM"
 echo "  S3 bucket:       s3://team-$TEAM"
 echo "  K8s secret:      team-$TEAM-s3-creds (in namespace team-$TEAM)"
 echo "  Iceberg ns:      iceberg.$TEAM"
+echo "  ArgoCD app:      team-$TEAM-infra (apps/team-$TEAM-infra-app.yaml)"
 echo "  Container Reg:   ghcr.io/<github-org>/team-$TEAM/"
 echo ""
 echo "Next steps:"
-echo "  1. Commit teams/$TEAM/ và secrets/teams/$TEAM/ to GitHub"
-echo "     (ArgoCD will sync automatically)"
+echo "  1. Commit to GitHub:"
+echo "       git add teams/$TEAM/ apps/team-$TEAM-infra-app.yaml"
+echo "       git commit -m 'chore: onboard team $TEAM'"
+echo "       git push"
+echo "     ArgoCD will sync automatically after push."
 echo "  2. Push team Docker images to: ghcr.io/<github-org>/team-$TEAM/<image>"
 echo "  3. Add team DAGs to platform-dags/dags/$TEAM/"
 echo "  4. Add SparkApp YAMLs to platform-dags/dags/$TEAM/spark-apps/"
