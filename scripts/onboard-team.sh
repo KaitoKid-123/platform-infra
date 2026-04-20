@@ -152,27 +152,29 @@ else
 fi
 
 # =============================================================================
-# STEP 6: Create Iceberg namespace
+# STEP 6: Create Iceberg namespace (via temp pod — Iceberg only reachable inside cluster)
 # =============================================================================
 log_info "[6/7] Creating Iceberg namespace..."
 
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-  "$ICEBERG_REST/v1/namespaces/$TEAM")
+if [[ "$DRY_RUN" != "true" ]]; then
+  # Check if namespace already exists
+  CHECK_RESULT=$(kubectl run -n platform-storage "iceberg-ns-check-$TEAM" --rm -i --restart=Never \
+    --image=busybox:1.36 -- \
+    wget -qO- --timeout=10 "http://iceberg-rest:8181/v1/namespaces/$TEAM" 2>/dev/null || echo '{"error":"not_found"}')
 
-if [[ "$HTTP_STATUS" == "200" ]]; then
-  log_warn "  Iceberg namespace $TEAM already exists"
+  if echo "$CHECK_RESULT" | grep -q "error"; then
+    # Create namespace
+    kubectl run -n platform-storage "iceberg-ns-create-$TEAM" --rm -i --restart=Never \
+      --image=busybox:1.36 -- \
+      wget -qO- --timeout=10 -O- --post-data="{\"namespace\":[\"$TEAM\"],\"properties\":{\"owner\":\"team-$TEAM\",\"location\":\"s3://team-$TEAM/warehouse/\"}}" \
+      "http://iceberg-rest:8181/v1/namespaces" \
+      --header="Content-Type: application/json" 2>/dev/null || true
+    log_info "  Iceberg namespace created: $TEAM"
+  else
+    log_warn "  Iceberg namespace $TEAM already exists"
+  fi
 else
-  apply curl -s -X POST "$ICEBERG_REST/v1/namespaces" \
-    -H "Content-Type: application/json" \
-    -d "{\
-      \"namespace\": [\"$TEAM\"],\
-      \"properties\": {\
-        \"owner\": \"team-$TEAM\",\
-        \"location\": \"s3://team-$TEAM/warehouse/\",\
-        \"created_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\
-      }\
-    }" | jq .
-  log_info "  Iceberg namespace created: $TEAM"
+  log_warn "[DRY RUN] Would create Iceberg namespace: $TEAM"
 fi
 
 # =============================================================================
