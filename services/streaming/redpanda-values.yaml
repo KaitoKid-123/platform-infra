@@ -48,6 +48,9 @@ console:
 tests:
   enabled: false
 
+tls:
+  enabled: false
+
 statefulset:
   replicas: 1
   additionalRedpandaCmdFlags: []
