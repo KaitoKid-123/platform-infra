@@ -46,7 +46,7 @@ spec:
             - bash
             - -lc
             - |
-              rpk redpanda start \
+              redpanda start \
                 --mode dev-container \
                 --smp 1 \
                 --memory 512M \
