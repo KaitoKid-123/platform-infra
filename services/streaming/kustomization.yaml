@@ -8,7 +8,7 @@ resources:
 helmCharts:
   - name: redpanda
     repo: https://charts.redpanda.com
-    version: 5.12.0
+    version: 5.10.7
     releaseName: redpanda
     namespace: platform-streaming
     valuesFile: redpanda-values.yaml

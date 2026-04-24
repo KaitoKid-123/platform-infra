@@ -2,7 +2,7 @@ replicas: 1
 
 image:
   repository: docker.redpanda.com/redpandadata/redpanda
-  tag: v24.3.10
+  tag: v25.1.12
 
 fullnameOverride: redpanda
 nameOverride: redpanda
