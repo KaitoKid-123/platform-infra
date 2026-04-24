@@ -5,6 +5,7 @@ image:
   tag: v24.3.10
 
 fullnameOverride: redpanda
+nameOverride: redpanda
 
 rbac:
   enabled: true
@@ -23,10 +24,7 @@ listeners:
     external:
       enabled: false
   http:
-    enabled: true
-    port: 8082
-    external:
-      enabled: false
+    enabled: false
   schemaRegistry:
     enabled: false
 
@@ -34,6 +32,7 @@ external:
   enabled: false
   service:
     enabled: false
+  type: ""
 
 storage:
   persistentVolume:
@@ -56,3 +55,4 @@ tests:
 
 statefulset:
   replicas: 1
+  additionalRedpandaCmdFlags: []
