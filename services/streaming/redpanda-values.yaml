@@ -17,12 +17,8 @@ serviceAccount:
 listeners:
   kafka:
     port: 9092
-    external:
-      enabled: false
   admin:
     port: 9644
-    external:
-      enabled: false
   http:
     enabled: false
   schemaRegistry:
@@ -32,7 +28,6 @@ external:
   enabled: false
   service:
     enabled: false
-  type: ""
 
 storage:
   persistentVolume:
