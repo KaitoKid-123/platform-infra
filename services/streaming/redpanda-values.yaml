@@ -1,0 +1,58 @@
+replicas: 1
+
+image:
+  repository: docker.redpanda.com/redpandadata/redpanda
+  tag: v24.3.10
+
+fullnameOverride: redpanda
+
+rbac:
+  enabled: true
+
+serviceAccount:
+  create: true
+  name: redpanda
+
+listeners:
+  kafka:
+    port: 9092
+    external:
+      enabled: false
+  admin:
+    port: 9644
+    external:
+      enabled: false
+  http:
+    enabled: true
+    port: 8082
+    external:
+      enabled: false
+  schemaRegistry:
+    enabled: false
+
+external:
+  enabled: false
+  service:
+    enabled: false
+
+storage:
+  persistentVolume:
+    enabled: true
+    storageClass: local-path
+    size: 10Gi
+
+resources:
+  cpu:
+    cores: 1
+  memory:
+    container:
+      max: 1Gi
+
+console:
+  enabled: false
+
+tests:
+  enabled: false
+
+statefulset:
+  replicas: 1
