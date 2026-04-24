@@ -46,18 +46,11 @@ spec:
             - bash
             - -lc
             - |
-              redpanda start \
-                --overprovisioned \
+              rpk redpanda start \
+                --mode dev-container \
                 --smp 1 \
                 --memory 512M \
-                --reserve-memory 0M \
-                --node-id 0 \
-                --kafka-addr PLAINTEXT://0.0.0.0:9092 \
-                --advertise-kafka-addr PLAINTEXT://redpanda.platform-streaming.svc.cluster.local:9092 \
-                --pandaproxy-addr 0.0.0.0:8082 \
-                --advertise-pandaproxy-addr redpanda.platform-streaming.svc.cluster.local:8082 \
-                --rpc-addr 0.0.0.0:33145 \
-                --advertise-rpc-addr redpanda.platform-streaming.svc.cluster.local:33145
+                --reserve-memory 0M
           ports:
             - containerPort: 9092
               name: kafka
