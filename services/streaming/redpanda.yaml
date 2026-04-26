@@ -49,7 +49,7 @@ spec:
               redpanda start \
                 --mode dev-container \
                 --smp 1 \
-                --memory 384M \
+                --memory 256M \
                 --reserve-memory 0M
           ports:
             - containerPort: 9092
@@ -59,10 +59,10 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 512Mi
+              memory: 256Mi
             limits:
               cpu: 500m
-              memory: 1Gi
+              memory: 512Mi
           volumeMounts:
             - name: data
               mountPath: /var/lib/redpanda/data
