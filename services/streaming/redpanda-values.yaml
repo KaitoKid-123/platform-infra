@@ -43,10 +43,11 @@ resources:
     # enough for the internal Redpanda + reserve memory budget.
     # 512Mi is too small for this chart version, so use a safer dev size.
     container:
-      max: 768Mi
+      max: 896Mi
 
-# Keep the broker small enough for a dev cluster node while still satisfying
-# the chart's memory validation.
+# The chart validates that the container memory must exceed the internal
+# Redpanda + reserve memory budget. 896Mi keeps the broker lightweight while
+# avoiding the render-time validation failure.
 
 # Redpanda on a small 4-node dev cluster needs a tighter memory budget.
 # The default 1Gi container limit leaves too little room for the runtime

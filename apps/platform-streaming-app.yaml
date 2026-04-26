@@ -3,6 +3,9 @@ kind: Application
 metadata:
   name: platform-streaming
   namespace: argocd
+  labels:
+    app: platform-streaming
+    appgroup: platform
 spec:
   project: default
   source:
@@ -18,3 +21,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
