@@ -40,7 +40,11 @@ resources:
     cores: 1
   memory:
     container:
-      max: 1Gi
+      max: 768Mi
+
+# Redpanda on a small 4-node dev cluster needs a tighter memory budget.
+# The default 1Gi container limit leaves too little room for the runtime
+# after Redpanda's own reservation and triggers CrashLoopBackOff.
 
 console:
   enabled: false
