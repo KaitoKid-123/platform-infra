@@ -2,17 +2,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - namespace.yaml
+  - redpanda.yaml
   - spark-streaming-role.yaml
   - spark-streaming-namespace-role-binding.yaml
   - streaming-checkpoint-pvc.yaml
-helmCharts:
-  - name: redpanda
-    repo: https://charts.redpanda.com
-    version: 5.10.7
-    releaseName: redpanda
-    namespace: platform-streaming
-    valuesFile: redpanda-values.yaml
 
-# [ADDED] Streaming stack is isolated in its own namespace
-# and does not modify existing platform-data / platform-compute
-# resources, so the current cluster behavior remains unchanged.
+# Keep the streaming stack self-contained and avoid a Helm dependency here.
+# The Redpanda chart requires cert-manager resources and extra TLS plumbing,
+# which makes a first-pass deployment brittle in clusters that do not yet
+# have the full Redpanda operator stack installed.
