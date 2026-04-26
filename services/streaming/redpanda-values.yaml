@@ -39,12 +39,14 @@ resources:
   cpu:
     cores: 1
   memory:
+    # The Redpanda Helm chart validates that container memory is large
+    # enough for the internal Redpanda + reserve memory budget.
+    # 512Mi is too small for this chart version, so use a safer dev size.
     container:
-      max: 512Mi
+      max: 768Mi
 
-# Keep the broker small enough for a dev cluster node.
-# The chart otherwise renders a 1Gi limit, which makes Redpanda reserve
-# too much memory and crash on startup.
+# Keep the broker small enough for a dev cluster node while still satisfying
+# the chart's memory validation.
 
 # Redpanda on a small 4-node dev cluster needs a tighter memory budget.
 # The default 1Gi container limit leaves too little room for the runtime
