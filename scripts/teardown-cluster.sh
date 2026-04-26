@@ -13,7 +13,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-ARGOCD_VERSION="v2.9.0"
+ARGOCD_VERSION="v2.14.21"
 
 # ---- Colors & logging ----
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -72,6 +72,7 @@ if kubectl get namespace argocd &>/dev/null; then
   done
 
   log_info "Xóa ArgoCD Applications..."
+  kubectl delete application platform-streaming -n argocd --timeout=30s 2>/dev/null || true
   kubectl delete applications.argoproj.io --all -n argocd --timeout=30s 2>/dev/null || true
 
   log_info "Xóa ArgoCD..."
@@ -91,14 +92,30 @@ else
 fi
 
 # ══════════════════════════════════════════════════
-log_step "Phase 2: Xóa Data & Compute services"
+log_step "Phase 2: Xóa Streaming, Data & Compute services"
 # ══════════════════════════════════════════════════
 
-for ns in platform-data platform-compute; do
+for ns in platform-streaming platform-data platform-compute; do
   if kubectl get namespace "$ns" &>/dev/null; then
     log_info "Xóa tất cả resources trong $ns..."
     kubectl delete all --all -n "$ns" --timeout=60s 2>/dev/null || true
     kubectl delete pvc --all -n "$ns" --timeout=60s 2>/dev/null || true
+    kubectl delete secret --all -n "$ns" 2>/dev/null || true
+    kubectl delete configmap --all -n "$ns" 2>/dev/null || true
+    kubectl delete rolebinding --all -n "$ns" 2>/dev/null || true
+    kubectl delete role --all -n "$ns" 2>/dev/null || true
+    if [[ "$ns" == "platform-streaming" ]]; then
+      log_info "Xóa riêng Redpanda StatefulSet/Service/PDB/SA/PVC cũ trong $ns..."
+      kubectl delete statefulset redpanda -n "$ns" --timeout=60s 2>/dev/null || true
+      kubectl delete service redpanda -n "$ns" 2>/dev/null || true
+      kubectl delete poddisruptionbudget redpanda -n "$ns" 2>/dev/null || true
+      kubectl delete serviceaccount redpanda -n "$ns" 2>/dev/null || true
+      kubectl delete secret redpanda-configurator -n "$ns" 2>/dev/null || true
+      kubectl delete secret redpanda-sts-lifecycle -n "$ns" 2>/dev/null || true
+      kubectl delete configmap redpanda -n "$ns" 2>/dev/null || true
+      kubectl delete pvc datadir-redpanda-0 -n "$ns" 2>/dev/null || true
+      kubectl delete pvc redpanda-data -n "$ns" 2>/dev/null || true
+    fi
   else
     log_warn "Namespace $ns không tồn tại, bỏ qua"
   fi
@@ -134,7 +151,7 @@ fi
 log_step "Phase 5: Xóa namespaces"
 # ══════════════════════════════════════════════════
 
-for ns in platform-ops platform-data platform-compute platform-storage monitoring team-finance local-path-storage; do
+for ns in platform-streaming platform-ops platform-data platform-compute platform-storage monitoring team-finance local-path-storage; do
   if kubectl get namespace "$ns" &>/dev/null; then
     log_info "Xóa namespace $ns..."
     kubectl delete namespace "$ns" --timeout=60s 2>/dev/null || true
@@ -142,7 +159,7 @@ for ns in platform-ops platform-data platform-compute platform-storage monitorin
 done
 
 # Đợi tất cả namespaces xóa xong
-for ns in argocd platform-ops platform-data platform-compute platform-storage monitoring team-finance local-path-storage; do
+for ns in argocd platform-streaming platform-ops platform-data platform-compute platform-storage monitoring team-finance local-path-storage; do
   wait_ns_deleted "$ns" 60
 done
 
