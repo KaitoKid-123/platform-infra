@@ -43,14 +43,15 @@ spec:
           image: docker.redpanda.com/redpandadata/redpanda:v24.3.10
           imagePullPolicy: IfNotPresent
           command:
-            - bash
-            - -lc
-            - |
-              redpanda start \
-                --mode dev-container \
-                --smp 1 \
-                --memory 256M \
-                --reserve-memory 0M
+            - rpk
+            - redpanda
+            - start
+            - --smp
+            - "1"
+            - --memory
+            - 256M
+            - --reserve-memory
+            - 0M
           ports:
             - containerPort: 9092
               name: kafka

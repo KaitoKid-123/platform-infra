@@ -40,7 +40,11 @@ resources:
     cores: 1
   memory:
     container:
-      max: 768Mi
+      max: 512Mi
+
+# Keep the broker small enough for a dev cluster node.
+# The chart otherwise renders a 1Gi limit, which makes Redpanda reserve
+# too much memory and crash on startup.
 
 # Redpanda on a small 4-node dev cluster needs a tighter memory budget.
 # The default 1Gi container limit leaves too little room for the runtime
